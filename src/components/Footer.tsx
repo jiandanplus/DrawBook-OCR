@@ -6,8 +6,11 @@ const Footer = () => {
             <div className="max-w-7xl mx-auto px-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
                     <div className="col-span-1 md:col-span-1">
-                        <div className="text-2xl font-bold tracking-tighter text-white mb-6">
-                            DrawBookAI
+                        <div className="flex items-center gap-2 mb-6">
+                            <img src="https://tzuzzfoqqbrzshaajjqh.supabase.co/storage/v1/object/sign/OCR/system/logo.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85ZDVkYTBlZi1hMDFmLTQ5MGItODI4MC1iNzg1N2E2M2Y3NWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJPQ1Ivc3lzdGVtL2xvZ28ucG5nIiwiaWF0IjoxNzY3MDE1NjQ3LCJleHAiOjMxNTM2MDE3MzU0Nzk2NDd9.mAmIp6aAlBXUY0o9-h4p2WZss6jhm2VogjoPTx2eCUI" alt="DrawBookAI Logo" className="h-8 w-auto rounded-lg" />
+                            <div className="text-2xl font-bold tracking-tighter text-white">
+                                DrawBookAI
+                            </div>
                         </div>
                         <p className="text-sm text-gray-500 leading-relaxed mb-6">
                             致力于为 AI 时代提供最精准的文档解析不仅是工具，更是基础设施。

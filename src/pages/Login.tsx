@@ -1,13 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QrCode, Eye, EyeOff, ShieldCheck, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
+    const navigate = useNavigate();
+    const { user, loading: authLoading } = useAuth();
     const [loginMethod, setLoginMethod] = useState<'qrcode' | 'password'>('password');
     const [isRegistering, setIsRegistering] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (user && !authLoading) {
+            navigate('/workbench');
+        }
+    }, [user, authLoading, navigate]);
 
     return (
         <div className="min-h-screen bg-black flex overflow-hidden">
@@ -15,8 +24,9 @@ const Login = () => {
             <div className="w-full lg:w-[480px] p-8 flex flex-col justify-center border-r border-white/10 bg-card-bg relative z-20">
                 <div className="max-w-xs w-full mx-auto">
                     <div className="mb-12">
-                        <Link to="/" className="text-2xl font-bold text-white tracking-tighter">
-                            DrawBookAI
+                        <Link to="/" className="flex items-center gap-2">
+                            <img src="https://tzuzzfoqqbrzshaajjqh.supabase.co/storage/v1/object/sign/OCR/system/logo.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85ZDVkYTBlZi1hMDFmLTQ5MGItODI4MC1iNzg1N2E2M2Y3NWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJPQ1Ivc3lzdGVtL2xvZ28ucG5nIiwiaWF0IjoxNzY3MDE1NjQ3LCJleHAiOjMxNTM2MDE3MzU0Nzk2NDd9.mAmIp6aAlBXUY0o9-h4p2WZss6jhm2VogjoPTx2eCUI" alt="DrawBookAI Logo" className="h-8 w-auto rounded-lg" />
+                            <span className="text-2xl font-bold text-white tracking-tighter">DrawBookAI</span>
                         </Link>
                     </div>
 

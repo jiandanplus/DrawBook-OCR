@@ -31,7 +31,7 @@ const Workflow = () => {
                         <ArrowRight size={32} />
                     </div>
 
-                    {/* Step 2: DrawBookAI Engine */}
+                    {/* Step 2: SoMark Engine */}
                     <div className="bg-card-bg border border-accent-orange/30 rounded-xl p-6 h-[400px] flex flex-col relative overflow-hidden shadow-[0_0_30px_rgba(255,140,0,0.1)]">
                         <div className="absolute inset-0 bg-accent-orange/5" />
                         <h3 className="text-lg font-semibold mb-4 text-center text-accent-orange">DrawBookAI Engine</h3>

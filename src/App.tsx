@@ -11,28 +11,32 @@ import Login from './pages/Login';
 import About from './pages/About';
 import Consulting from './pages/Consulting';
 
+import { AuthProvider } from './contexts/AuthContext';
+
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/newTrial" element={<Experience />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/consulting" element={<Consulting />} />
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/newTrial" element={<Experience />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/consulting" element={<Consulting />} />
 
-        {/* Workbench Routes */}
-        <Route path="/workbench" element={<WorkbenchLayout />}>
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="purchase" element={<Purchase />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="apikey" element={<ApiKey />} />
-          {/* Default redirect to dashboard */}
-          <Route index element={<Dashboard />} />
-        </Route>
-      </Routes>
-    </Router>
+          {/* Workbench Routes */}
+          <Route path="/workbench" element={<WorkbenchLayout />}>
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="purchase" element={<Purchase />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="apikey" element={<ApiKey />} />
+            {/* Default redirect to dashboard */}
+            <Route index element={<Dashboard />} />
+          </Route>
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

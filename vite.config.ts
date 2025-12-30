@@ -11,7 +11,8 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/baidu-api/, ''),
         headers: {
-          'Referer': 'https://rbx0gd46k4iacfm7.aistudio-app.com'
+          'Referer': 'https://rbx0gd46k4iacfm7.aistudio-app.com',
+          'Origin': 'https://rbx0gd46k4iacfm7.aistudio-app.com'
         }
       }
     }
