@@ -10,6 +10,9 @@ import Experience from './pages/Experience';
 import Login from './pages/Login';
 import About from './pages/About';
 import Consulting from './pages/Consulting';
+import ApiDocs from './pages/ApiDocs';
+import Changelog from './pages/Changelog';
+import Pricing from './pages/Pricing';
 
 import { AuthProvider } from './contexts/AuthContext';
 
@@ -24,6 +27,9 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/about" element={<About />} />
           <Route path="/consulting" element={<Consulting />} />
+          <Route path="/api-docs" element={<ApiDocs />} />
+          <Route path="/changelog" element={<Changelog />} />
+          <Route path="/pricing" element={<Pricing />} />
 
           {/* Workbench Routes */}
           <Route path="/workbench" element={<WorkbenchLayout />}>

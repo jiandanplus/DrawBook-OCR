@@ -54,7 +54,6 @@ const Footer = () => {
                         <a href="#" className="text-xs text-gray-500 hover:text-white transition-colors">Privacy Policy</a>
                         <a href="#" className="text-xs text-gray-500 hover:text-white transition-colors">Terms of Service</a>
                     </div>
-                    <p className="text-xs text-gray-600">Designed with ❤️ for AI</p>
                 </div>
             </div>
         </footer>

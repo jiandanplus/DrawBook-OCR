@@ -1,4 +1,4 @@
-import { ArrowRight, FileText } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
@@ -44,16 +44,16 @@ const Hero = () => {
                     </motion.div>
                 </div>
 
-                {/* Visual Flow Animation */}
+                {/* Visual Flow Animation 
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.8, delay: 0.3 }}
-                    className="relative max-w-5xl mx-auto mt-12 bg-card-bg border border-white/5 rounded-2xl p-4 md:p-8 shadow-2xl"
-                >
+                    className="relative max-w-5xl mx-auto mt-12 bg-card-bg border border-white/5 rounded-2xl p-4 md:p-8 shadow-2xl">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-12 relative">
+
                         {/* Left: Input */}
-                        <div className="flex-1 bg-black/50 rounded-xl p-6 border border-white/5 w-full">
+                {/* <div className="flex-1 bg-black/50 rounded-xl p-6 border border-white/5 w-full">
                             <div className="flex items-center gap-3 mb-4 border-b border-white/5 pb-3">
                                 <div className="w-3 h-3 rounded-full bg-red-500" />
                                 <div className="w-3 h-3 rounded-full bg-yellow-500" />
@@ -64,20 +64,20 @@ const Hero = () => {
                                 <FileText size={48} className="text-gray-600" />
                                 <span className="text-sm text-gray-500">PDF / Images</span>
                             </div>
-                        </div>
+                        </div> */}
 
-                        {/* Middle: Processing */}
-                        <div className="flex flex-col items-center gap-2 text-accent-orange">
+                {/* Middle: Processing */}
+                {/* <div className="flex flex-col items-center gap-2 text-accent-orange">
                             <div className="w-16 h-[2px] bg-gradient-to-r from-transparent via-accent-orange to-transparent animate-pulse" />
                             <div className="w-12 h-12 rounded-full bg-accent-orange/20 flex items-center justify-center border border-accent-orange relative">
                                 <div className="absolute inset-0 rounded-full animate-ping bg-accent-orange/20" />
                                 <span className="font-bold text-sm">AI</span>
                             </div>
                             <div className="w-16 h-[2px] bg-gradient-to-r from-transparent via-accent-orange to-transparent animate-pulse" />
-                        </div>
+                        </div> */}
 
-                        {/* Right: Output */}
-                        <div className="flex-1 bg-black/50 rounded-xl p-6 border border-white/5 w-full">
+                {/* Right: Output */}
+                {/* <div className="flex-1 bg-black/50 rounded-xl p-6 border border-white/5 w-full">
                             <div className="flex items-center gap-3 mb-4 border-b border-white/5 pb-3">
                                 <div className="flex gap-2">
                                     <div className="w-2 h-2 rounded-full bg-gray-600" />
@@ -95,9 +95,9 @@ const Hero = () => {
                                 <p className="text-green-400">| Value | 123  |</p>
                                 <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black to-transparent" />
                             </div>
-                        </div>
-                    </div>
-                </motion.div>
+                        </div> */}
+                {/* </div> */}
+                {/* </motion.div> */}
             </div>
         </section>
     );

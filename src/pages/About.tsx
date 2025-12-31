@@ -20,10 +20,10 @@ const About = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
                         <div className="p-8 rounded-2xl bg-card-bg border border-white/10 hover:border-accent-orange/30 transition-colors">
-                            <div className="text-3xl font-bold text-white mb-2">千万级</div>
-                            <div className="text-sm text-gray-500 mb-6">天使轮融资</div>
+                            <div className="text-3xl font-bold text-white mb-2">轻量级</div>
+                            <div className="text-sm text-gray-500 mb-6">模块化设计</div>
                             <p className="text-gray-400">
-                                获得顶级投资机构背书，资金充足，持续投入核心技术研发。
+                                模块化设计，易于扩展，支持各种垂直场景拓展微调。
                             </p>
                         </div>
                         <div className="p-8 rounded-2xl bg-card-bg border border-white/10 hover:border-accent-orange/30 transition-colors">
@@ -40,15 +40,13 @@ const About = () => {
                         <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16">
                             <div className="text-left">
                                 <div className="text-sm text-gray-500 mb-1">官方邮箱</div>
-                                <div className="text-lg font-medium text-white mb-4">DrawBookAI@soulcode.cn</div>
+                                <div className="text-lg font-medium text-white mb-4">jfd001@drawbookai.cn</div>
 
                                 <div className="text-sm text-gray-500 mb-1">总部地址</div>
-                                <div className="text-lg font-medium text-white">上海市 · 徐汇区</div>
+                                <div className="text-lg font-medium text-white">苏州市 · 高新区</div>
                             </div>
                             <div className="w-32 h-32 bg-white p-2 rounded-lg">
-                                <div className="w-full h-full bg-gray-200 flex items-center justify-center text-black text-xs text-center">
-                                    WeChat QR Code
-                                </div>
+                                <img src="https://tzuzzfoqqbrzshaajjqh.supabase.co/storage/v1/object/public/OCR/system/qrcode_for_gh_29f004336b5d_258.jpg" alt="WeChat QR Code" className="w-full h-full object-cover" />
                             </div>
                         </div>
                     </div>

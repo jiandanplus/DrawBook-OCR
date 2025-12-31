@@ -44,10 +44,10 @@ const Navbar = () => {
             name: '产品接入',
             path: '#',
             dropdown: [
-                { name: '产品定价', path: '/#api-pricing' },
+                { name: '产品定价', path: '/pricing' },
                 { name: 'API 工作台', path: '/workbench' },
-                { name: 'API 文档', path: 'https://apifox.com/apidoc/shared-def8d80c-0335-433b-8533-5c8e426639d6' },
-                { name: '更新日志', path: '#' }
+                { name: 'API 文档', path: '/api-docs' },
+                { name: '更新日志', path: '/changelog' }
             ]
         },
         { name: '商务咨询', path: '/consulting' },

@@ -180,8 +180,32 @@ const Experience = () => {
 
             // Call handleFileUpload with cache context
             // If file.ocr_result is present, handleFileUpload will use it.
-            // If not, it will fetch from API and then update user_files table.
-            await handleFileUpload(fileObj, { table: 'user_files', id: file.id }, file.ocr_result);
+            // If not, it will fetch from API and then we update user_files table.
+            // User file already exists - only charge if it's a NEW parse (no cache)
+            const shouldCharge = !file.ocr_result; // Charge only if no cached result
+            const ocrData = await handleFileUpload(fileObj, { table: 'user_files', id: file.id }, file.ocr_result, shouldCharge);
+
+            // If we got new data and it wasn't from cache (file.ocr_result was null), save it
+            if (ocrData?.data && !file.ocr_result) {
+                console.log('Saving new OCR result to database for existing file:', file.id);
+                // Create a clean copy without the large base64 image
+                const dbData = JSON.parse(JSON.stringify(ocrData.data));
+                if (dbData.result && dbData.result.image) {
+                    delete dbData.result.image;
+                }
+
+                const { error } = await supabase
+                    .from('user_files')
+                    .update({ ocr_result: dbData })
+                    .eq('id', file.id);
+
+                if (error) {
+                    console.error('Failed to update file with OCR result:', error);
+                } else {
+                    // Update local state so next click uses cache
+                    setUserFiles(prev => prev.map(f => f.id === file.id ? { ...f, ocr_result: ocrData.data } : f));
+                }
+            }
 
         } catch (err) {
             console.log(err);
@@ -237,7 +261,30 @@ const Experience = () => {
             const fileObj = new File([blob], filename, { type: minetype });
 
             // Pass example_files context and existing cache if available
-            await handleFileUpload(fileObj, { table: 'example_files', id: fileId }, file.ocr_result);
+            // Example files are FREE - pass false for shouldChargeUsage
+            const ocrData = await handleFileUpload(fileObj, { table: 'example_files', id: fileId }, file.ocr_result, false);
+
+            // If we got new data and it wasn't from cache (file.ocr_result was null), save it
+            if (ocrData?.data && !file.ocr_result) {
+                console.log('Saving new OCR result to database for example file:', fileId);
+                // Create a clean copy without the large base64 image
+                const dbData = JSON.parse(JSON.stringify(ocrData.data));
+                if (dbData.result && dbData.result.image) {
+                    delete dbData.result.image;
+                }
+
+                const { error } = await supabase
+                    .from('example_files')
+                    .update({ ocr_result: dbData })
+                    .eq('id', fileId);
+
+                if (error) {
+                    console.error('Failed to update example file with OCR result:', error);
+                } else {
+                    // Update local state so next click uses cache
+                    setExampleFiles(prev => prev.map(f => f.id === fileId ? { ...f, ocr_result: ocrData.data } : f));
+                }
+            }
 
         } catch (err: any) {
             console.error('Error loading example:', err);
@@ -247,7 +294,13 @@ const Experience = () => {
     };
 
     // Handle file upload
-    const handleFileUpload = async (file: File, dbParams?: { table: 'user_files' | 'example_files', id: string }, existingOcrResult?: any) => {
+    // shouldChargeUsage: only true for user-uploaded NEW files (not examples, not cached)
+    const handleFileUpload = async (
+        file: File,
+        dbParams?: { table: 'user_files' | 'example_files', id: string },
+        existingOcrResult?: any,
+        shouldChargeUsage: boolean = false
+    ): Promise<{ data: any; pagesProcessed: number } | null> => {
         setUploadedFile(file);
         // If manual upload, clear selection
         if (selectedFile && !exampleFiles.find(f => f.name === file.name) && !dbParams) {
@@ -271,7 +324,7 @@ const Experience = () => {
             if (existingOcrResult) {
                 console.log('Using cached OCR result');
                 processOcrResult(existingOcrResult);
-                return existingOcrResult;
+                return { data: existingOcrResult, pagesProcessed: existingOcrResult.result?.layoutParsingResults?.length || 1 };
             }
 
             // 2. Need to call API
@@ -487,7 +540,31 @@ const Experience = () => {
 
             // 4. Render Result
             processOcrResult(data);
-            return data;
+
+            // 5. Log usage and deduct balance (only if shouldChargeUsage is true)
+            const pagesProcessed = data.result?.layoutParsingResults?.length || 1;
+            if (shouldChargeUsage && user) {
+                try {
+                    // Use combined RPC that logs usage AND decrements balance atomically
+                    const { data: newBalance, error: rpcError } = await supabase.rpc('log_usage_and_decrement', {
+                        p_user_id: user.id,
+                        p_pages: pagesProcessed,
+                        p_file_name: file.name
+                    });
+
+                    if (rpcError) {
+                        console.error('Usage RPC error:', rpcError);
+                    } else {
+                        console.log(`Usage charged: ${pagesProcessed} pages for ${file.name}. New balance: ${newBalance}`);
+                    }
+                } catch (usageError) {
+                    console.error('Failed to log usage:', usageError);
+                }
+            } else {
+                console.log(`No charge (cached or example): ${pagesProcessed} pages for ${file.name}`);
+            }
+
+            return { data, pagesProcessed };
 
         } catch (err: any) {
             console.error('OCR Error:', err);
@@ -517,27 +594,55 @@ const Experience = () => {
                         pageText += `## ${content}\n\n`;
                     } else if (type === 'header') {
                         pageText += `*${content}*\n\n`;
-                    } else if (type === 'image') {
-                        let imagePath = content;
-                        const match = content.match(/!\[.*?\]\((.*?)\)/);
-                        if (match && match[1]) imagePath = match[1];
+                    } else if (['image', 'chart', 'figure', 'header_image', 'footer_image'].includes(type)) {
+                        let imgUrl: string | null = null;
 
-                        let imgUrl = pageImages[imagePath];
-                        if (!imgUrl) {
-                            const filename = imagePath.split('/').pop();
-                            if (filename) {
-                                const exactMatch = Object.entries(pageImages).find(([k]) => k.endsWith(filename));
-                                if (exactMatch) imgUrl = exactMatch[1] as string;
+                        // 1. Try to get URL from content if it exists
+                        if (content && content.trim() !== "") {
+                            let imagePath = content;
+                            const match = content.match(/!\[.*?\]\((.*?)\)/);
+                            if (match && match[1]) imagePath = match[1];
+
+                            imgUrl = pageImages[imagePath];
+                            if (!imgUrl) {
+                                const filename = imagePath.split('/').pop();
+                                if (filename) {
+                                    const exactMatch = Object.entries(pageImages).find(([k]) => k.endsWith(filename));
+                                    if (exactMatch) imgUrl = exactMatch[1] as string;
+                                }
+                            }
+                            // Fallback: check if content itself is a key
+                            if (!imgUrl && pageImages[content]) imgUrl = pageImages[content];
+                        }
+
+                        // 2. If no URL found yet, try constructing key from bbox
+                        // Pattern: imgs/img_in_{type}_box_{x}_{y}_{w}_{h}.jpg
+                        if ((!imgUrl || imgUrl.trim() === '') && block.block_bbox && Array.isArray(block.block_bbox)) {
+                            const [x, y, w, h] = block.block_bbox;
+                            if (x !== undefined && y !== undefined && w !== undefined && h !== undefined) {
+                                // Important: parsing_res_list uses [x,y,x2,y2] or [x,y,w,h]? 
+                                // Based on sample: [232, 646, 843, 915] which looks like [x1, y1, x2, y2]. 
+                                // But the image key in JSON is: imgs/img_in_chart_box_232_646_843_915.jpg
+                                // So we just join them with underscores.
+                                const bboxStr = block.block_bbox.join('_');
+                                const key = `imgs/img_in_${type}_box_${bboxStr}.jpg`;
+                                if (pageImages[key]) {
+                                    imgUrl = pageImages[key];
+                                }
                             }
                         }
 
-                        // Fallback: check if content itself is a key
-                        if (!imgUrl && pageImages[content]) imgUrl = pageImages[content];
-
                         if (imgUrl && imgUrl.trim() !== "") {
-                            pageText += `![image](${imgUrl})\n\n`;
-                        } else if (imagePath && imagePath.trim() !== "") {
-                            pageText += `![image](${imagePath})\n\n`;
+                            pageText += `![${type}](${imgUrl})\n\n`;
+                        } else if (content && content.trim() !== "") {
+                            // If we have content but no image URL, render content as image path only if it looks like one,
+                            // otherwise maybe it is just text. But for type 'image' content usually IS path or md image.
+                            // For 'chart' content is often empty.
+                            if (content.includes('![')) {
+                                pageText += `${content}\n\n`;
+                            } else {
+                                pageText += `![${type}](${content})\n\n`;
+                            }
                         }
                     } else if (type === 'table') {
                         pageText += `${content}\n\n`;
@@ -640,28 +745,41 @@ const Experience = () => {
             setSelectedFile(null);
 
             // Start OCR (for preview) and S3 Upload (for storage) concurrently
-            const ocrPromise = handleFileUpload(file);
+            // New user upload - CHARGE for usage
+            const ocrPromise = handleFileUpload(file, undefined, undefined, true);
 
             if (user) {
                 const uploadPromise = uploadToStorage(file);
 
                 // Wait for both to likely create the DB connection if successful
                 try {
-                    const [ocrData, newFile] = await Promise.all([ocrPromise, uploadPromise]);
+                    console.log('Waiting for OCR and Upload to complete...');
+                    const [ocrResult, newFile] = await Promise.all([ocrPromise, uploadPromise]);
+                    console.log('Promise.all completed:', { hasOcrResult: !!ocrResult, hasNewFile: !!newFile });
 
-                    if (ocrData && newFile) {
+                    if (ocrResult?.data && newFile) {
                         console.log('Updating new file with OCR result', newFile.id);
+
+                        // Create a clean copy without the large base64 image
+                        const dbData = JSON.parse(JSON.stringify(ocrResult.data));
+                        if (dbData.result && dbData.result.image) {
+                            delete dbData.result.image;
+                        }
+
                         const { error } = await supabase
                             .from('user_files')
-                            .update({ ocr_result: ocrData })
+                            .update({ ocr_result: dbData })
                             .eq('id', newFile.id);
 
                         if (error) {
                             console.error('Failed to update new file with OCR result', error);
                         } else {
+                            console.log('Successfully updated user file with OCR result');
                             // Update local state to reflect the new cached result
-                            setUserFiles(prev => prev.map(f => f.id === newFile.id ? { ...f, ocr_result: ocrData } : f));
+                            setUserFiles(prev => prev.map(f => f.id === newFile.id ? { ...f, ocr_result: dbData } : f));
                         }
+                    } else {
+                        console.warn('Skipping DB update - missing OCR result or new file record', { ocrResult, newFile });
                     }
                 } catch (err) {
                     console.error('Error coordinating upload and OCR:', err);
@@ -678,7 +796,7 @@ const Experience = () => {
         const file = e.dataTransfer.files?.[0];
         if (file) {
             setSelectedFile(null);
-            handleFileUpload(file);
+            handleFileUpload(file, undefined, undefined, true); // Drag/drop = new upload, charge
             // Upload to S3 if logged in
             if (user) {
                 uploadToStorage(file);
@@ -696,7 +814,7 @@ const Experience = () => {
                         const file = items[i].getAsFile();
                         if (file) {
                             setSelectedFile(null);
-                            handleFileUpload(file);
+                            handleFileUpload(file, undefined, undefined, true); // Paste = new upload, charge
                         }
                     }
                 }
@@ -707,9 +825,12 @@ const Experience = () => {
     }, []);
 
     // Copy to clipboard
+    // Copy to clipboard
     const handleCopy = async () => {
         if (!ocrResult) return;
-        const content = activeTab === 'markdown' ? ocrResult.markdown : JSON.stringify(ocrResult.json, null, 2);
+        console.log('Copying content. Active Tab:', activeTab);
+        // Default to markdown unless explicitly JSON
+        const content = activeTab === 'json' ? JSON.stringify(ocrResult.json, null, 2) : ocrResult.markdown;
         await navigator.clipboard.writeText(content);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -718,8 +839,8 @@ const Experience = () => {
     // Export file
     const handleExport = () => {
         if (!ocrResult) return;
-        const content = activeTab === 'markdown' ? ocrResult.markdown : JSON.stringify(ocrResult.json, null, 2);
-        const ext = activeTab === 'markdown' ? 'md' : 'json';
+        const content = activeTab === 'json' ? JSON.stringify(ocrResult.json, null, 2) : ocrResult.markdown;
+        const ext = activeTab === 'json' ? 'json' : 'md';
         const blob = new Blob([content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -744,10 +865,12 @@ const Experience = () => {
             if (visiblePage) {
                 const pageNum = parseInt(visiblePage.target.getAttribute('data-page-num') || '1');
                 if (!isNaN(pageNum) && pageNum !== currentPage) {
-                    // Sync Markdown Scroll
+                    // Sync Markdown Scroll - use manual scrollTop to avoid scrolling ancestor containers
                     const markdownAnchor = document.getElementById(`markdown-page-${pageNum}`);
                     if (markdownAnchor && markdownRef.current) {
-                        markdownAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        const container = markdownRef.current;
+                        const anchorOffset = markdownAnchor.offsetTop - container.offsetTop;
+                        container.scrollTo({ top: anchorOffset, behavior: 'smooth' });
                     }
                     // Update current page state without triggering scroll back? 
                     // Actually setCurrentPage might trigger other effects, keep it simple for now.
@@ -850,9 +973,14 @@ const Experience = () => {
         // Use best guess if no exact match
         if (!foundNode) foundNode = bestMatchNode;
 
-        if (foundNode && foundNode.parentElement) {
-            // Scroll into view
-            foundNode.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (foundNode && foundNode.parentElement && markdownRef.current) {
+            // Scroll into view - use manual scrollTop to avoid scrolling ancestor containers
+            const container = markdownRef.current;
+            const element = foundNode.parentElement;
+            const elementRect = element.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const targetScrollTop = container.scrollTop + elementRect.top - containerRect.top - container.clientHeight / 2;
+            container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
 
             // Temporary Highlight
             const originalBg = foundNode.parentElement.style.backgroundColor;
@@ -879,11 +1007,11 @@ const Experience = () => {
     }
 
     return (
-        <div className="h-screen bg-black text-white flex overflow-hidden">
+        <div className="fixed inset-0 bg-black text-white flex overflow-hidden" style={{ overscrollBehavior: 'none' }}>
             {/* Sidebar */}
             <aside className="w-[229px] bg-[#0A0A0A] border-r border-white/10 flex flex-col shrink-0">
                 {/* Logo */}
-                <div className="h-12 flex items-center px-4 border-b border-white/10">
+                <div className="h-12 flex items-center px-4 border-b border-white/10 shrink-0">
                     <Link to="/" className="flex items-center hover:opacity-80 transition-opacity gap-2">
                         <img src="https://tzuzzfoqqbrzshaajjqh.supabase.co/storage/v1/object/sign/OCR/system/logo.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85ZDVkYTBlZi1hMDFmLTQ5MGItODI4MC1iNzg1N2E2M2Y3NWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJPQ1Ivc3lzdGVtL2xvZ28ucG5nIiwiaWF0IjoxNzY3MDE1NjQ3LCJleHAiOjMxNTM2MDE3MzU0Nzk2NDd9.mAmIp6aAlBXUY0o9-h4p2WZss6jhm2VogjoPTx2eCUI" alt="DrawBookAI Logo" className="h-7 w-auto rounded-lg" />
                         <span className="text-lg font-bold">DrawBookAI</span>
@@ -892,7 +1020,7 @@ const Experience = () => {
                 </div>
 
                 {/* Upload Button */}
-                <div className="p-3">
+                <div className="p-3 shrink-0">
                     <label className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#FF9031] hover:bg-orange-600 text-white rounded-lg cursor-pointer transition-colors">
                         <FileUp size={18} />
                         <span className="text-sm font-medium">上传我的文件</span>
@@ -975,7 +1103,7 @@ const Experience = () => {
 
                 {/* API Access Footer */}
                 {/* API Access Footer */}
-                <div className="p-3 border-t border-white/10">
+                <div className="p-3 border-t border-white/10 shrink-0">
                     {user ? (
                         <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-3 px-2 py-2">
@@ -1017,11 +1145,11 @@ const Experience = () => {
 
 
             {/* Main Content */}
-            <main className="flex-1 flex">
+            <main className="flex-1 flex min-w-0 min-h-0">
                 {/* File Viewer Panel */}
-                <div className="flex-1 flex flex-col border-r border-white/10 relative">
+                <div className="flex-1 flex flex-col border-r border-white/10 relative min-h-0 min-w-0">
                     {/* Toolbar */}
-                    <div className="h-12 flex items-center justify-center gap-6 px-4 border-b border-white/10 bg-[#0A0A0A]">
+                    <div className="h-12 flex items-center justify-center gap-6 px-4 border-b border-white/10 bg-[#0A0A0A] shrink-0">
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -1060,7 +1188,7 @@ const Experience = () => {
 
                     {/* Preview Area */}
                     <div
-                        className="flex-1 flex items-center justify-center p-4 overflow-auto relative bg-black/50"
+                        className="flex-1 flex items-center justify-center p-4 overflow-hidden relative bg-black/50"
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={handleDrop}
                     >
@@ -1219,9 +1347,9 @@ const Experience = () => {
                 </div>
 
                 {/* Result Panel */}
-                <div className="flex-1 flex flex-col bg-[#0A0A0A]">
+                <div className="flex-1 flex flex-col bg-[#0A0A0A] min-h-0 min-w-0">
                     {/* Tab Toggle */}
-                    <div className="h-12 flex items-center justify-center border-b border-white/10">
+                    <div className="h-12 flex items-center justify-center border-b border-white/10 shrink-0">
                         <div className="flex bg-white/5 rounded-full p-1">
                             <button
                                 onClick={() => setActiveTab('markdown')}
@@ -1299,7 +1427,7 @@ const Experience = () => {
                     </div>
 
                     {/* Footer Buttons */}
-                    <div className="h-14 flex items-center justify-end gap-3 px-4 border-t border-white/10">
+                    <div className="h-14 flex items-center justify-end gap-3 px-4 border-t border-white/10 shrink-0">
                         <button className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 border border-white/10 rounded-lg hover:text-white hover:border-white/20 transition-colors">
                             <MessageSquare size={14} />
                             问题反馈

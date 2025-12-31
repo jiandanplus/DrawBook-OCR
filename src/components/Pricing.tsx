@@ -13,7 +13,7 @@ const Pricing = () => {
         },
         {
             name: "标准版",
-            price: "0.1",
+            price: "0.01",
             unit: "元 / 页",
             features: ["按量付费", "QPS 无限制", "优先技术支持", "99.9% 可用性"],
             cta: "充值使用",
@@ -30,7 +30,7 @@ const Pricing = () => {
     ];
 
     return (
-        <section className="py-24 bg-black border-t border-white/5">
+        <section id="pricing" className="py-24 bg-black border-t border-white/5">
             <div className="max-w-7xl mx-auto px-6">
                 <div className="text-center mb-16">
                     <h2 className="text-3xl md:text-5xl font-bold mb-4">简单透明的定价</h2>

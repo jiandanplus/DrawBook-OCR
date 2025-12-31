@@ -5,21 +5,21 @@ const Stats = () => {
     const stats = [
         {
             icon: <Layers className="w-6 h-6 text-accent-orange" />,
-            value: "21+",
-            label: "解析元素类型",
-            desc: "涵盖文本、表格、公式、图片等"
+            value: "高精准",
+            label: "21+元素类型",
+            desc: "坐标精准追溯、精确解析"
         },
         {
             icon: <Zap className="w-6 h-6 text-accent-orange" />,
-            value: "100页/5s",
+            value: "效率高",
             label: "极速处理",
-            desc: "高并发架构，实时响应"
+            desc: "1000页长文档1分钟完成"
         },
         {
             icon: <Cpu className="w-6 h-6 text-accent-orange" />,
-            value: "低资源",
-            label: "硬件需求",
-            desc: "支持消费级显卡部署"
+            value: "成本低",
+            label: "按需选择",
+            desc: "一张RTX2080即可私有部署"
         }
     ];
 
